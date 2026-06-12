@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI-OS Neural Cortex</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: #000912; overflow: hidden;
+  font-family: 'Courier New', monospace;
+  background-image:
+    linear-gradient(rgba(0,229,255,0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,255,0.022) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+canvas { display:block; animation: flicker 12s infinite; }
+@keyframes flicker {
+  0%,100%{opacity:1} 94%{opacity:1} 94.5%{opacity:.72} 95%{opacity:1}
+  97%{opacity:1} 97.4%{opacity:.82} 97.7%{opacity:1}
+}
+#scanlines {
+  position:fixed; inset:0; pointer-events:none; z-index:10;
+  background: repeating-linear-gradient(0deg,transparent,transparent 3px,
+    rgba(0,200,255,0.011) 3px,rgba(0,200,255,0.011) 4px);
+}
+#vignette {
+  position:fixed; inset:0; pointer-events:none; z-index:9;
+  background: radial-gradient(ellipse at center, transparent 35%, rgba(0,4,18,0.88) 100%);
+}
+#title {
+  position:fixed; top:22px; left:50%; transform:translateX(-50%);
+  z-index:20; pointer-events:none;
+  font-size:12px; letter-spacing:11px; color:#00e5ff;
+  text-shadow:0 0 20px #00e5ff,0 0 50px rgba(0,229,255,.35),0 0 100px rgba(0,229,255,.1);
+  animation: tp 5s ease-in-out infinite;
+}
+@keyframes tp {
+  0%,100%{opacity:1;text-shadow:0 0 20px #00e5ff,0 0 50px rgba(0,229,255,.35)}
+  50%{opacity:.72;text-shadow:0 0 10px #00e5ff,0 0 25px rgba(0,229,255,.15)}
+}
+#stats {
+  position:fixed; left:24px; top:68px; z-index:20; pointer-events:none;
+  font-family:'Courier New',monospace; font-size:10px; color:rgba(0,229,255,.5);
+}
+.sg { margin-bottom:14px; }
+.sl { letter-spacing:3px; font-size:8px; color:rgba(0,229,255,.25); margin-bottom:3px; }
+.sv { font-size:20px; color:#fff; font-weight:bold; text-shadow:0 0 12px #00e5ff; }
+#filefeed {
+  position:fixed; right:24px; top:50%; transform:translateY(-50%);
+  z-index:20; pointer-events:none; width:270px;
+}
+.fh {
+  font-size:8px; letter-spacing:3px; color:rgba(0,255,170,.3);
+  margin-bottom:10px; padding-bottom:6px;
+  border-bottom:1px solid rgba(0,255,170,.1);
+}
+.fi {
+  font-size:9px; color:#00ffaa; padding:3px 0 3px 10px;
+  border-left:1px solid rgba(0,255,170,.15);
+  opacity:0; transform:translateX(8px);
+  animation:fs 4.5s forwards;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  display:flex; gap:0;
+}
+@keyframes fs {
+  0%{opacity:0;transform:translateX(8px)} 12%{opacity:1;transform:translateX(0)}
+  70%{opacity:.7} 100%{opacity:0}
+}
+.fa { color:rgba(0,255,170,.35); margin-right:6px; flex-shrink:0; }
+.fn { flex:1; overflow:hidden; text-overflow:ellipsis; }
+.fz { color:rgba(0,255,170,.25); margin-left:6px; font-size:8px; flex-shrink:0; }
+#progress {
+  position:fixed; bottom:48px; left:50%; transform:translateX(-50%);
+  z-index:20; pointer-events:none; width:220px; text-align:center;
+}
+.pl { font-size:8px; letter-spacing:3px; color:rgba(0,229,255,.3); margin-bottom:6px; }
+.pt { height:1px; background:rgba(0,229,255,.1); border-radius:1px; overflow:hidden; position:relative; }
+#progFill { height:100%; width:0%; background:linear-gradient(90deg,#0055ff,#00e5ff); box-shadow:0 0 10px #00e5ff; transition:width .5s ease; }
+#statusbar {
+  position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+  z-index:20; pointer-events:none;
+  font-size:8px; letter-spacing:4px; color:rgba(0,229,255,.2);
+}
+.corner {
+  position:fixed; z-index:20; pointer-events:none;
+  width:18px; height:18px; border-color:rgba(0,229,255,.18); border-style:solid;
+}
+.tl{top:12px;left:12px;border-width:1px 0 0 1px}
+.tr{top:12px;right:12px;border-width:1px 1px 0 0}
+.bl{bottom:12px;left:12px;border-width:0 0 1px 1px}
+.br{bottom:12px;right:12px;border-width:0 1px 1px 0}
+</style>
+</head>
+<body>
+<div id="scanlines"></div>
+<div id="vignette"></div>
+<div class="corner tl"></div><div class="corner tr"></div>
+<div class="corner bl"></div><div class="corner br"></div>
+<div id="title">A I &ndash; O S &nbsp; &middot; &nbsp; N E U R A L &nbsp; C O R T E X</div>
+<div id="stats">
+  <div class="sg"><div class="sl">NODES</div><div class="sv" id="sN">0</div></div>
+  <div class="sg"><div class="sl">SYNAPSES</div><div class="sv" id="sS">0</div></div>
+  <div class="sg"><div class="sl">ACTIVE SIGNALS</div><div class="sv" id="sA">0</div></div>
+  <div class="sg"><div class="sl">FILES INDEXED</div><div class="sv" id="sF">0</div></div>
+  <div class="sg"><div class="sl">NEURAL LOAD</div><div class="sv" id="sM">0%</div></div>
+</div>
+<div id="filefeed"><div class="fh">&#9658; INDEXING FILES</div></div>
+<div id="progress">
+  <div class="pl">NEURAL INDEX SCAN</div>
+  <div class="pt"><div id="progFill"></div></div>
+</div>
+<div id="statusbar">DRAG TO ROTATE &nbsp;&middot;&nbsp; SCROLL TO ZOOM &nbsp;&middot;&nbsp; AI-OS v2.0</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script>
+// ── Scene ─────────────────────────────────────────────────────
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x000912, 0.005);
+const camera = new THREE.PerspectiveCamera(52, innerWidth/innerHeight, 0.1, 2000);
+camera.position.set(0, 40, 240);
+camera.lookAt(0, 0, 0);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setClearColor(0x000912, 1);
+document.body.appendChild(renderer.domElement);
+
+// Lights
+scene.add(new THREE.AmbientLight(0x001133, 3));
+const pl1 = new THREE.PointLight(0x00e5ff, 4, 400);
+pl1.position.set(0, 120, 120); scene.add(pl1);
+const pl2 = new THREE.PointLight(0x0044ff, 2, 400);
+pl2.position.set(-120, -60, -80); scene.add(pl2);
+
+// Background stars
+const stGeo = new THREE.BufferGeometry();
+const stPos = new Float32Array(500 * 3);
+for (let i = 0; i < 500; i++) {
+  stPos[i*3]   = (Math.random()-.5)*1200;
+  stPos[i*3+1] = (Math.random()-.5)*800;
+  stPos[i*3+2] = (Math.random()-.5)*600 - 200;
+}
+stGeo.setAttribute('position', new THREE.BufferAttribute(stPos, 3));
+scene.add(new THREE.Points(stGeo, new THREE.PointsMaterial({
+  color:0x002244, size:.8, transparent:true, opacity:.5, blending:THREE.AdditiveBlending
+})));
+
+// ── Neuron positions (brain shape) ────────────────────────────
+const N = 240;
+const pos = [];
+function brainPt() {
+  const side = Math.random() > .5 ? 1 : -1, ox = side * 22;
+  let x, y, z, tries = 0;
+  do {
+    const u=Math.random(), v=Math.random(), w=Math.random();
+    const theta=2*Math.PI*u, phi=Math.acos(2*v-1), r=Math.cbrt(w);
+    x = ox + r*68*Math.sin(phi)*Math.cos(theta) + (Math.random()-.5)*6;
+    y =       r*56*Math.sin(phi)*Math.sin(theta) + (Math.random()-.5)*6;
+    z =       r*52*Math.cos(phi)                 + (Math.random()-.5)*5;
+    y *= .88 + Math.abs(z/52)*.12;
+    tries++;
+  } while (tries < 40 && Math.abs(x) < 10 && Math.abs(y) < 25);
+  return new THREE.Vector3(x, y, z);
+}
+for (let i = 0; i < N; i++) pos.push(brainPt());
+
+// ── Edges ─────────────────────────────────────────────────────
+const edges = [], adj = Array.from({length:N}, ()=>[]);
+for (let i = 0; i < N; i++) {
+  let c = 0;
+  for (let j = i+1; j < N && c < 7; j++) {
+    if (pos[i].distanceTo(pos[j]) < 52) {
+      edges.push([i,j]); adj[i].push(j); adj[j].push(i); c++;
+    }
+  }
+}
+
+const brainGroup = new THREE.Group();
+scene.add(brainGroup);
+
+// ── Connection lines ──────────────────────────────────────────
+const lp = new Float32Array(edges.length*6), lc = new Float32Array(edges.length*6);
+for (let i = 0; i < edges.length; i++) {
+  const [a,b] = edges[i];
+  lp[i*6  ]=pos[a].x; lp[i*6+1]=pos[a].y; lp[i*6+2]=pos[a].z;
+  lp[i*6+3]=pos[b].x; lp[i*6+4]=pos[b].y; lp[i*6+5]=pos[b].z;
+  for (let v=0;v<2;v++){lc[i*6+v*3]=0; lc[i*6+v*3+1]=.25; lc[i*6+v*3+2]=.55;}
+}
+const lg = new THREE.BufferGeometry();
+lg.setAttribute('position', new THREE.BufferAttribute(lp, 3));
+lg.setAttribute('color',    new THREE.BufferAttribute(lc, 3));
+brainGroup.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({
+  vertexColors:true, transparent:true, opacity:.18,
+  blending:THREE.AdditiveBlending, depthWrite:false
+})));
+
+// ── Neuron nodes (custom shader) ──────────────────────────────
+const ncArr = new Float32Array(N*3), nsArr = new Float32Array(N);
+const nact  = new Float32Array(N);
+for (let i=0;i<N;i++){
+  const hub = adj[i].length >= 5;
+  ncArr[i*3]=hub?0:.05; ncArr[i*3+1]=hub?.85:.4; ncArr[i*3+2]=1;
+  nsArr[i] = hub ? 5.5 : 2+Math.random()*1.5;
+}
+const npArr = new Float32Array(N*3);
+for (let i=0;i<N;i++){npArr[i*3]=pos[i].x;npArr[i*3+1]=pos[i].y;npArr[i*3+2]=pos[i].z;}
+const ng = new THREE.BufferGeometry();
+ng.setAttribute('position', new THREE.BufferAttribute(npArr,3));
+ng.setAttribute('color',    new THREE.BufferAttribute(ncArr,3));
+ng.setAttribute('aSize',    new THREE.BufferAttribute(nsArr,1));
+const nm = new THREE.ShaderMaterial({
+  vertexShader:`
+    attribute float aSize; attribute vec3 color; varying vec3 vC;
+    void main(){vC=color;vec4 mv=modelViewMatrix*vec4(position,1.0);
+    gl_PointSize=aSize*(320.0/-mv.z);gl_Position=projectionMatrix*mv;}`,
+  fragmentShader:`
+    varying vec3 vC;
+    void main(){vec2 uv=gl_PointCoord-vec2(.5);float d=length(uv);
+    if(d>.5)discard;
+    float core=1.-smoothstep(0.,.15,d);
+    float g1=exp(-d*6.)*.7; float g2=exp(-d*2.5)*.3;
+    float a=(1.-smoothstep(.1,.5,d))*.95;
+    gl_FragColor=vec4(vC+g1+g2*.5,a+core*.5);}`,
+  transparent:true, blending:THREE.AdditiveBlending, depthWrite:false
+});
+brainGroup.add(new THREE.Points(ng, nm));
+
+// ── Signal pulses ──────────────────────────────────────────────
+const SMAX=100, SCOLS=[0x00ffff,0x00aaff,0xffffff,0x44ffaa,0x8888ff];
+const sPool=[], sSig=[];
+const sGeo = new THREE.SphereGeometry(1.4,6,4);
+for(let i=0;i<SMAX;i++){
+  const m=new THREE.Mesh(sGeo,new THREE.MeshBasicMaterial({
+    color:0x00ffff,transparent:true,opacity:.9,blending:THREE.AdditiveBlending,depthWrite:false}));
+  m.visible=false; brainGroup.add(m); sPool.push(m);
+}
+function spawn(from){
+  if(!adj[from].length) return;
+  const to=adj[from][Math.floor(Math.random()*adj[from].length)];
+  const slot=sPool.findIndex(m=>!m.visible); if(slot<0) return;
+  sPool[slot].visible=true;
+  sPool[slot].material.color.setHex(SCOLS[Math.floor(Math.random()*SCOLS.length)]);
+  sSig.push({from,to,t:0,speed:.25+Math.random()*.55,slot});
+}
+
+// ── Scan plane ────────────────────────────────────────────────
+const sg = new THREE.Group(); brainGroup.add(sg);
+const scanMesh = new THREE.Mesh(
+  new THREE.PlaneGeometry(280,180),
+  new THREE.MeshBasicMaterial({color:0x00e5ff,transparent:true,opacity:.025,
+    side:THREE.DoubleSide,blending:THREE.AdditiveBlending,depthWrite:false})
+);
+scanMesh.rotation.x=Math.PI/2; sg.add(scanMesh);
+const seP=new Float32Array([-140,0,-90,140,0,-90,140,0,-90,140,0,90,140,0,90,-140,0,90,-140,0,90,-140,0,-90]);
+const seG=new THREE.BufferGeometry(); seG.setAttribute('position',new THREE.BufferAttribute(seP,3));
+const scanEdge=new THREE.LineSegments(seG,new THREE.LineBasicMaterial({
+  color:0x00e5ff,transparent:true,opacity:.7,blending:THREE.AdditiveBlending,depthWrite:false}));
+sg.add(scanEdge);
+let scanY=-70, scanDir=1;
+
+// ── File feed ─────────────────────────────────────────────────
+const FILES=[
+  ['memory/identity.md','2.1kb'],['memory/active-context.md','3.4kb'],
+  ['memory/decisions.md','5.8kb'],['memory/mistakes-and-fixes.md','4.2kb'],
+  ['memory/skills.md','18.3kb'],['memory/persistent/brain-snapshot.md','7.1kb'],
+  ['outputs/Task_Checklist.html','42.6kb'],['outputs/brain-hologram.html','28.4kb'],
+  ['outputs/AI_OS_Intelligence_Report.html','156kb'],
+  ['outputs/aios-dashboard/dist/index.html','12.1kb'],
+  ['outputs/aios-dashboard/src/AIOSDashboard.jsx','8.9kb'],
+  ['outputs/aios-dashboard/src/AgentChatWidget.jsx','5.2kb'],
+  ['scripts/run.sh','1.8kb'],['scripts/verify.sh','3.1kb'],
+  ['scripts/progress.sh','4.6kb'],['scripts/memory-loader.sh','2.3kb'],
+  ['scripts/relaunch.sh','2.7kb'],['scripts/open-finder.sh','1.4kb'],
+  ['scripts/autosave-session.sh','1.9kb'],['bin/aios','0.5kb'],
+  ['install.sh','6.2kb'],['brain.md','11.4kb'],['CLAUDE.md','2.8kb'],
+  ['graphify-out/graph.json','87.3kb'],['graphify-out/graph.html','44.1kb'],
+  ['graphify-out/GRAPH_REPORT.md','9.2kb'],
+  ['logs/session-autosave.log','3.3kb'],['logs/install.log','2.1kb'],
+  ['logs/session-log.md','14.7kb'],['state/progress.json','0.9kb'],
+  ['outputs/santoshland-startup-setup.md','22.1kb'],
+  ['outputs/oldworldstore/landing-page.html','38.4kb'],
+  ['outputs/umas-hologram/index.html','52.3kb'],
+  ['outputs/ai-tools-reference.txt','31.2kb'],
+  ['agents/umas-seo.json','4.4kb'],['agents/content-bot.json','3.1kb'],
+  ['prompts/in/seo-prompt.md','6.8kb'],['prompts/in/umas-strategy.md','9.1kb'],
+  ['.claude/LAST_SESSION_SUMMARY.md','5.5kb'],['.claude/settings.local.json','2.3kb'],
+  ['outputs/AI_Beta_Bot/Prompt_Dashboard.html','94.2kb'],
+  ['sessions/.relaunch-prompt.txt','0.7kb'],
+];
+const feedEl = document.getElementById('filefeed');
+let fIdx=0, fScanned=0;
+
+function addFeed(){
+  const [name,size] = FILES[fIdx % FILES.length];
+  fIdx++; fScanned++;
+
+  const d = document.createElement('div'); d.className='fi';
+  const arrow = document.createElement('span'); arrow.className='fa'; arrow.textContent='▸';
+  const nm2   = document.createElement('span'); nm2.className='fn';   nm2.textContent=name;
+  const sz    = document.createElement('span'); sz.className='fz';    sz.textContent=size;
+  d.appendChild(arrow); d.appendChild(nm2); d.appendChild(sz);
+  feedEl.appendChild(d);
+  while(feedEl.children.length > 14) feedEl.removeChild(feedEl.children[1]);
+
+  document.getElementById('sF').textContent = fScanned;
+  document.getElementById('sM').textContent =
+    Math.min(99, Math.floor((fIdx % FILES.length)/FILES.length*100 + Math.random()*4)) + '%';
+  document.getElementById('progFill').style.width =
+    Math.min(100,((fIdx%FILES.length)/FILES.length)*100) + '%';
+
+  setTimeout(()=>{ if(d.parentNode) d.parentNode.removeChild(d); }, 4500);
+}
+
+// ── Controls ──────────────────────────────────────────────────
+let drag=false, autoSpin=true, mx=0, my=0, spinTO;
+renderer.domElement.addEventListener('mousedown',e=>{
+  drag=true; autoSpin=false; mx=e.clientX; my=e.clientY; clearTimeout(spinTO);
+});
+window.addEventListener('mousemove',e=>{
+  if(!drag) return;
+  brainGroup.rotation.y += (e.clientX-mx)*.006;
+  brainGroup.rotation.x += (e.clientY-my)*.004;
+  mx=e.clientX; my=e.clientY;
+});
+window.addEventListener('mouseup',()=>{ drag=false; spinTO=setTimeout(()=>{autoSpin=true;},3000); });
+renderer.domElement.addEventListener('wheel',e=>{
+  camera.position.z=Math.max(80,Math.min(500,camera.position.z+e.deltaY*.25));
+},{passive:true});
+window.addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+
+// ── Init ──────────────────────────────────────────────────────
+document.getElementById('sN').textContent = N;
+document.getElementById('sS').textContent = edges.length;
+for(let i=0;i<40;i++) setTimeout(()=>spawn(Math.floor(Math.random()*N)), i*55);
+
+// ── Animate ───────────────────────────────────────────────────
+const clock = new THREE.Clock();
+let feedT=0, sigT=0;
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=clock.getDelta(), t=clock.getElapsedTime();
+
+  if(autoSpin){ brainGroup.rotation.y+=.0018; brainGroup.rotation.x=Math.sin(t*.08)*.06; }
+
+  // Scan sweep
+  scanY += 28*dt*scanDir;
+  if(scanY>72) scanDir=-1; if(scanY<-72) scanDir=1;
+  sg.position.y = scanY;
+  scanMesh.material.opacity  = .02+Math.sin(t*2.5)*.01;
+  scanEdge.material.opacity  = .5 +Math.sin(t*2.5)*.2;
+
+  // Spawn signals
+  sigT+=dt;
+  if(sigT>.07){ sigT=0; if(sSig.length<SMAX-15) spawn(Math.floor(Math.random()*N)); }
+
+  // Advance signals
+  for(let i=sSig.length-1;i>=0;i--){
+    const s=sSig[i]; s.t+=s.speed*dt;
+    if(s.t>=1){ nact[s.to]=1; if(Math.random()>.35) spawn(s.to);
+      sPool[s.slot].visible=false; sSig.splice(i,1);
+    } else {
+      sPool[s.slot].position.lerpVectors(pos[s.from],pos[s.to],s.t);
+      sPool[s.slot].scale.setScalar(1-Math.abs(s.t-.5)*.6);
+    }
+  }
+
+  // Activate nodes near scan
+  for(let i=0;i<N;i++) if(Math.abs(pos[i].y-scanY)<7) nact[i]=Math.max(nact[i],.5);
+
+  // Update node colors
+  for(let i=0;i<N;i++){
+    const hub=adj[i].length>=5, a=nact[i], p=.3+.15*Math.sin(t*.6+i*.4);
+    if(a>.01){
+      ncArr[i*3]=a*.6; ncArr[i*3+1]=.5+a*.5; ncArr[i*3+2]=1;
+      nsArr[i]=(hub?5.5:2.5)*(1+a*.8); nact[i]*=.91;
+    } else {
+      ncArr[i*3]=hub?0:.04; ncArr[i*3+1]=hub?.65+p*.25:.3+p*.15; ncArr[i*3+2]=.85+p*.15;
+      nsArr[i]=hub?5:1.8+Math.sin(t*.4+i)*.3;
+    }
+  }
+  ng.attributes.color.needsUpdate=true;
+  ng.attributes.aSize.needsUpdate=true;
+
+  feedT+=dt; if(feedT>.42){ feedT=0; addFeed(); }
+  document.getElementById('sA').textContent=sSig.length;
+
+  renderer.render(scene,camera);
+}
+animate();
+</script>
+</body>
+</html>
