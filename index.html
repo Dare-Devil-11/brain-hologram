@@ -392,6 +392,21 @@ function animate(){
   renderer.render(scene,camera);
 }
 animate();
+
+// ── Live data fetch (every 60s) ────────────────────────────────
+function fetchLiveData() {
+  fetch('http://localhost:5556/brain-data', {signal: AbortSignal.timeout(3000)})
+    .then(r => r.json())
+    .then(d => {
+      if (d.nodes)  document.getElementById('sN').textContent = d.nodes;
+      if (d.synapses) document.getElementById('sS').textContent = d.synapses;
+      if (d.files_indexed) { fScanned = d.files_indexed; document.getElementById('sF').textContent = fScanned; }
+      if (d.neural_load) document.getElementById('sM').textContent = d.neural_load + '%';
+    })
+    .catch(() => {}); // Brain API offline — silently skip
+}
+setInterval(fetchLiveData, 60000);
+fetchLiveData();
 </script>
 </body>
 </html>
